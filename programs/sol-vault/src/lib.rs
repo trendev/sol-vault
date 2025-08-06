@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer, Transfer};
 
+pub mod constants;
+use constants::ANCHOR_DISCRIMINATOR_SIZE;
+
 declare_id!("C6hkvjdeyYjChDHx98WcJwhhsggWDDh1G3sKJZhU2WxK");
 
 #[program]
@@ -45,6 +48,7 @@ pub mod sol_vault {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct VaultAccount {
     pub owner: Pubkey,
     pub unlock_time: i64, // Unix timestamp (seconds)
@@ -57,7 +61,7 @@ pub struct InitializeVault<'info> {
         payer = user,
         seeds = [b"vault", user.key().as_ref()],
         bump,
-        space = 8 + 32 + 8  // 8 discriminator, 32 Pubkey, 8 i64
+        space = ANCHOR_DISCRIMINATOR_SIZE + VaultAccount::INIT_SPACE,
     )]
     pub vault_account: Account<'info, VaultAccount>,
     #[account(mut)]
