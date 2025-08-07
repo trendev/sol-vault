@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_lang::system_program::{transfer, Transfer};
 
+// If you keep a constants.rs file:
 pub mod constants;
 use constants::ANCHOR_DISCRIMINATOR_SIZE;
 
@@ -10,39 +10,25 @@ declare_id!("C6hkvjdeyYjChDHx98WcJwhhsggWDDh1G3sKJZhU2WxK");
 pub mod sol_vault {
     use super::*;
 
-    // Creates the vault with an unlock timestamp set by the user
+    /// Create or reinitialize the vault with an unlock timestamp set by the user
     pub fn initialize_vault(ctx: Context<InitializeVault>, unlock_time: i64) -> Result<()> {
-        ctx.accounts.vault_account.owner = ctx.accounts.user.key();
-        ctx.accounts.vault_account.unlock_time = unlock_time;
+        let vault = &mut ctx.accounts.vault_account;
+        if vault.owner == Pubkey::default() { // skip on future calls
+            vault.owner = ctx.accounts.user.key();
+        }
+        vault.unlock_time = unlock_time;
         Ok(())
     }
 
-    // Only the owner can withdraw, and only after the unlock time has passed
-    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+    /// Only the owner can close the vault, and only after unlock time has passed.
+    /// Closing sends *all* vault lamports to the recipient and deletes the account.
+    pub fn close_vault(ctx: Context<CloseVault>) -> Result<()> {
         let clock = Clock::get()?;
         require!(
             clock.unix_timestamp >= ctx.accounts.vault_account.unlock_time,
             TimelockError::VaultLocked
         );
-
-        let vault = ctx.accounts.vault_account.to_account_info();
-        let recipient = ctx.accounts.recipient.to_account_info();
-        let system_program = ctx.accounts.system_program.to_account_info();
-
-        let seed = ctx.accounts.owner.key();
-        let bump_seed = ctx.bumps.vault_account;
-        let signer_seeds: &[&[&[u8]]] = &[&[b"vault", seed.as_ref(), &[bump_seed]]];
-
-        let cpi_ctx = CpiContext::new(
-            system_program,
-            Transfer {
-                from: vault,
-                to: recipient,
-            },
-        )
-         .with_signer(signer_seeds);
-
-        transfer(cpi_ctx, amount)?;
+        // Anchor's `close` constraint does all lamport transfer & account deletion.
         Ok(())
     }
 }
@@ -57,7 +43,7 @@ pub struct VaultAccount {
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
-        init,
+        init_if_needed,
         payer = user,
         seeds = [b"vault", user.key().as_ref()],
         bump,
@@ -70,18 +56,18 @@ pub struct InitializeVault<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Withdraw<'info> {
+pub struct CloseVault<'info> {
     #[account(
         mut,
         seeds = [b"vault", owner.key().as_ref()],
         bump,
         has_one = owner,
+        close = recipient, // Sends all lamports & closes account
     )]
     pub vault_account: Account<'info, VaultAccount>,
     pub owner: Signer<'info>,
     #[account(mut)]
     pub recipient: SystemAccount<'info>,
-    pub system_program: Program<'info, System>,
 }
 
 #[error_code]
