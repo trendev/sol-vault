@@ -16,7 +16,7 @@ pub mod sol_vault {
         if vault.owner == Pubkey::default() { // skip on future calls
             vault.owner = ctx.accounts.user.key();
         }
-        vault.unlock_time = unlock_time;
+        vault.unlock_time = unlock_time; // user can lock/unlock vault
         Ok(())
     }
 
