@@ -13,8 +13,14 @@ pub mod sol_vault {
     /// Create or reinitialize the vault with an unlock timestamp set by the user
     pub fn initialize_vault(ctx: Context<InitializeVault>, unlock_time: i64) -> Result<()> {
         let vault = &mut ctx.accounts.vault_account;
+        let clock = Clock::get()?;
+
         if vault.owner == Pubkey::default() { // skip on future calls
             vault.owner = ctx.accounts.user.key();
+        }
+
+        if clock.unix_timestamp <= unlock_time {
+            msg!("Unlock time should be in the future...");
         }
         vault.unlock_time = unlock_time; // user can lock/unlock vault
         Ok(())
