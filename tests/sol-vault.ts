@@ -28,18 +28,18 @@ describe("sol-vault (deterministic unlock)", () => {
     // Set unlock time far in the future
     const unlockTime = new anchor.BN(now + 3600); // 1 hour from now
 
-    // Fund the vault PDA so it can pay out
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(vaultPda, 2_000_000_000),
-      "confirmed"
-    );
-
     await program.methods.initializeVault(unlockTime)
       .accounts({
         user: user.publicKey,
       })
       .signers([])
       .rpc();
+
+    // Fund the vault PDA so it can pay out
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(vaultPda, 2_000_000_000),
+      "confirmed"
+    );
 
     try {
       await program.methods.closeVault()
@@ -59,11 +59,6 @@ describe("sol-vault (deterministic unlock)", () => {
     // Set unlock time in the past
     const unlockTime = new anchor.BN(now - 3600); // 1 hour ago
 
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(vaultPda, 2_000_000_000),
-      "confirmed"
-    );
-
     await program.methods.initializeVault(unlockTime)
       .accounts({
         user: user.publicKey,
@@ -71,6 +66,11 @@ describe("sol-vault (deterministic unlock)", () => {
       .signers([])
       .rpc();
 
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(vaultPda, 2_000_000_000),
+      "confirmed"
+    );
+    
     // Should work immediately, no waiting
     await program.methods.closeVault()
       .accounts({
