@@ -2,7 +2,13 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { SolVault } from "../target/types/sol_vault";
 import { assert, expect } from "chai";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 
 anchor.setProvider(anchor.AnchorProvider.env());
 const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -52,10 +58,12 @@ describe("sol-vault (deterministic unlock)", () => {
 
     const vault = await program.account.vaultAccount.fetch(vaultPda);
     assert.strictEqual(vault.bump, vaultBump, "bump mismatch");
-    
+    assert(vault.owner.equals(user.publicKey), "user is not the owner");
     try {
       await program.methods.closeVault()
         .accounts({
+          owner: user.publicKey,
+          vaultAccount: vaultPda,
           recipient: user.publicKey,
         })
         .signers([user])
@@ -70,8 +78,9 @@ describe("sol-vault (deterministic unlock)", () => {
   it("allows withdrawal after unlock", async () => {
     // Set unlock time in the past
     const unlockTime = new anchor.BN(now - 3600); // 1 hour ago
-    const donator = Keypair.generate();
-    fund(donator.publicKey, 2);
+    const transferLamports = 1_000_000;
+    const donor = Keypair.generate();
+    await fund(donor.publicKey, 2);
 
     await program.methods.initializeVault(unlockTime)
       .accounts({
@@ -81,14 +90,52 @@ describe("sol-vault (deterministic unlock)", () => {
       .signers([])
       .rpc();
 
-    fund(vaultPda, 3);
+    const userBalanceBefore = await provider.connection.getBalance(user.publicKey);
+    const donorBalanceBefore = await provider.connection.getBalance(donor.publicKey);
+    const vaultBalanceBefore = await provider.connection.getBalance(vaultPda);
+
+    assert(vaultBalanceBefore !== 0, "vault should not be empty");
+    const tx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: donor.publicKey,
+        toPubkey: vaultPda,
+        lamports: transferLamports,
+      })
+    );
+    await sendAndConfirmTransaction(provider.connection, tx, [donor]);
+
+    const donorBalanceAfter = await provider.connection.getBalance(donor.publicKey);
+    const vaultBalanceAfter = await provider.connection.getBalance(vaultPda);
+
+    assert.strictEqual(
+      vaultBalanceAfter - vaultBalanceBefore,
+      transferLamports,
+      "vault should receive the transferred lamports"
+    );
+    assert(donorBalanceBefore - transferLamports >= donorBalanceAfter, "donator should only lose the transferred lamports (fees excluded)");
 
     // Should work immediately, no waiting
     await program.methods.closeVault()
       .accounts({
+        owner: user.publicKey,
+        vaultAccount: vaultPda,
         recipient: user.publicKey,
       })
       .signers([user])
       .rpc();
+
+    const userBalanceAfter = await provider.connection.getBalance(user.publicKey);
+
+    let failed = false;
+    try {
+      await program.account.vaultAccount.fetch(vaultPda);
+    } catch {
+      failed = true;
+    }
+    assert(failed, "vault is closed and should not be fetched");
+    assert(userBalanceAfter <= userBalanceBefore + vaultBalanceAfter, "vault should have been withdrawn to user");
+    
+    const vaultBalanceAfterClose = await provider.connection.getBalance(vaultPda);
+    assert.strictEqual(vaultBalanceAfterClose, 0, "vault balance should be 0");
   });
 });
