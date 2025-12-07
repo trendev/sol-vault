@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { SolVault } from "../target/types/sol_vault";
-import { expect } from "chai";
+import { assert, expect } from "chai";
 import { Keypair, PublicKey } from "@solana/web3.js";
 
 anchor.setProvider(anchor.AnchorProvider.env());
@@ -50,6 +50,9 @@ describe("sol-vault (deterministic unlock)", () => {
       .signers([])
       .rpc();
 
+    const vault = await program.account.vaultAccount.fetch(vaultPda);
+    assert.strictEqual(vault.bump, vaultBump, "bump mismatch");
+    
     try {
       await program.methods.closeVault()
         .accounts({

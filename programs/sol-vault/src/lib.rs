@@ -17,6 +17,7 @@ pub mod sol_vault {
         if vault.owner == Pubkey::default() {
             // skip on future calls
             vault.owner = ctx.accounts.user.key();
+            vault.bump = ctx.bumps.vault_account;
         }
 
         // A owner can change the lock-time, yes.
@@ -46,6 +47,7 @@ pub mod sol_vault {
 pub struct VaultAccount {
     pub owner: Pubkey,
     pub unlock_time: i64, // Unix timestamp (seconds)
+    pub bump: u8,
 }
 
 #[derive(Accounts)]
