@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 
-// If you keep a constants.rs file:
 pub mod constants;
 use constants::ANCHOR_DISCRIMINATOR_SIZE;
 
@@ -15,10 +14,13 @@ pub mod sol_vault {
         let vault = &mut ctx.accounts.vault_account;
         let clock = Clock::get()?;
 
-        if vault.owner == Pubkey::default() { // skip on future calls
+        if vault.owner == Pubkey::default() {
+            // skip on future calls
             vault.owner = ctx.accounts.user.key();
         }
 
+        /// A owner can change the lock-time, yes.
+        /// For production purpose, you can return an Error instead...
         if clock.unix_timestamp <= unlock_time {
             msg!("Unlock time should be in the future...");
         }
