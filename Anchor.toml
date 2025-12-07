@@ -4,6 +4,7 @@ package_manager = "yarn"
 [features]
 resolution = true
 skip-lint = false
+seeds = true
 
 [programs.localnet]
 sol_vault = "C6hkvjdeyYjChDHx98WcJwhhsggWDDh1G3sKJZhU2WxK"

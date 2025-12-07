@@ -19,8 +19,8 @@ pub mod sol_vault {
             vault.owner = ctx.accounts.user.key();
         }
 
-        /// A owner can change the lock-time, yes.
-        /// For production purpose, you can return an Error instead...
+        // A owner can change the lock-time, yes.
+        // For production purpose, you can return an Error instead...
         if clock.unix_timestamp <= unlock_time {
             msg!("Unlock time should be in the future...");
         }
