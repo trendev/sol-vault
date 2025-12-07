@@ -13,7 +13,7 @@ sol_vault = "C6hkvjdeyYjChDHx98WcJwhhsggWDDh1G3sKJZhU2WxK"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
