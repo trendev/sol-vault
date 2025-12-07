@@ -16,8 +16,13 @@ A minimal SOL timelock vault built with Anchor. Users create a vault PDA tied to
 2. Install JS deps: `yarn install`.
 3. Build program: `anchor build`.
 4. Run tests (local validator): `anchor test`.
+5. After deploying, run the init helper: `UNLOCK_SECONDS=3600 yarn init:vault` (prints the vault PDA and transaction signature for explorer use).
 
 If the test validator port `8899` is busy, stop the existing validator or run Anchor with a different `--provider.cluster`/port.
+
+### Provider setup for scripts
+- Devnet (example): `ANCHOR_PROVIDER_URL=https://api.devnet.solana.com ANCHOR_WALLET=~/.config/solana/id.json UNLOCK_SECONDS=3600 yarn init:vault`
+- Localnet fallback: if `ANCHOR_PROVIDER_URL` is unset, the script defaults to `AnchorProvider.local()` (localhost:8899 with `~/.config/solana/id.json`).
 
 ## Key files
 - Program: `programs/sol-vault/src/lib.rs`
